@@ -1,0 +1,173 @@
+{% extends "base_public.html" %}
+
+{% block content %}
+
+<style>
+.login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+}
+
+.login-card {
+    width: 380px;
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    animation: fadeIn 0.5s ease;
+}
+
+.login-card h2 {
+    margin-bottom: 20px;
+    color: #111827;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+
+/* PASSWORD WRAPPER */
+.password-wrapper {
+    position: relative;
+}
+
+/* SHOW BUTTON */
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #2563eb;
+}
+
+/* BUTTON */
+.login-btn {
+    width: 100%;
+    padding: 12px;
+    background: #f59e0b;
+    border: none;
+    color: white;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.login-btn:hover {
+    background: #d97706;
+}
+
+/* LINKS */
+.login-links {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.login-links a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+/* STATUS */
+.status {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.error { color: red; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px);}
+    to { opacity: 1; transform: translateY(0);}
+}
+</style>
+
+<div class="login-wrapper">
+
+    <div class="login-card">
+
+        <h2>Sign in to FinOps</h2>
+
+        <input id="email" placeholder="Email address">
+
+        <div class="password-wrapper">
+            <input id="password" type="password" placeholder="Password">
+            <span class="toggle-password" onclick="togglePassword()">Show</span>
+        </div>
+
+        <button class="login-btn" onclick="login()">
+            Sign in to Console
+        </button>
+
+        <p id="status" class="status"></p>
+
+        <div class="login-links">
+            <a href="/signup">Create account</a>
+            <a href="/forgot-password">Forgot Password?</a>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+function togglePassword() {
+    const pass = document.getElementById("password");
+    const toggle = document.querySelector(".toggle-password");
+
+    if (pass.type === "password") {
+        pass.type = "text";
+        toggle.innerText = "Hide";
+    } else {
+        pass.type = "password";
+        toggle.innerText = "Show";
+    }
+}
+
+async function login() {
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const status = document.getElementById("status");
+
+    if (!email || !password) {
+        status.innerText = "Fill all fields";
+        status.className = "status error";
+        return;
+    }
+
+    try {
+        const res = await fetch("/auth/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.token) {
+            localStorage.setItem("token", data.token);
+            window.location.href = "/dashboard";
+        } else {
+            status.innerText = data.message;
+            status.className = "status error";
+        }
+
+    } catch (err) {
+        status.innerText = "Something went wrong";
+        status.className = "status error";
+    }
+}
+
+</script>
+
+{% endblock %}

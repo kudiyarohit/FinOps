@@ -1,0 +1,285 @@
+{% extends "base_public.html" %}
+{% block content %}
+
+<style>
+
+/* 🔥 HERO FULL SCREEN */
+.hero {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+
+    background: radial-gradient(circle at 20% 20%, rgba(59,130,246,0.25), transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(16,185,129,0.2), transparent 40%),
+                #020617;
+
+    position: relative;
+    overflow: hidden;
+}
+
+/* 🔥 ANIMATED GLOW */
+.hero::before {
+    content: "";
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(59,130,246,0.3), transparent 60%);
+    top: -100px;
+    left: -100px;
+    animation: moveGlow 8s infinite alternate ease-in-out;
+}
+
+.hero::after {
+    content: "";
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(16,185,129,0.25), transparent 60%);
+    bottom: -120px;
+    right: -120px;
+    animation: moveGlow 10s infinite alternate ease-in-out;
+}
+
+@keyframes moveGlow {
+    0% { transform: translate(0,0); }
+    100% { transform: translate(50px, 40px); }
+}
+
+/* 🔥 TITLE */
+.hero h1 {
+    font-size: 56px;
+    font-weight: 700;
+    color: white;
+    max-width: 800px;
+    line-height: 1.2;
+    z-index: 2;
+}
+
+/* 🔥 SUBTEXT */
+.hero p {
+    margin-top: 20px;
+    font-size: 18px;
+    color: #94a3b8;
+    max-width: 600px;
+    z-index: 2;
+}
+
+/* 🔥 BUTTONS */
+.hero-buttons {
+    margin-top: 30px;
+    display: flex;
+    gap: 15px;
+    z-index: 2;
+}
+
+.btn-primary {
+    padding: 14px 28px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    border: none;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(37,99,235,0.5);
+}
+
+.btn-secondary {
+    padding: 14px 28px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #cbd5f5;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-secondary:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* 🔥 DASHBOARD PREVIEW CARD */
+.preview {
+    margin-top: 60px;
+    width: 850px;
+    height: 260px;
+    background: linear-gradient(145deg, #020617, #0f172a);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.05);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+    z-index: 2;
+    position: relative;
+    overflow: hidden;
+}
+
+/* FAKE DASHBOARD LINES */
+.preview::before {
+    content: "";
+    position: absolute;
+    width: 80%;
+    height: 10px;
+    background: rgba(255,255,255,0.1);
+    top: 30px;
+    left: 10%;
+    border-radius: 6px;
+}
+
+.preview::after {
+    content: "";
+    position: absolute;
+    width: 60%;
+    height: 10px;
+    background: rgba(255,255,255,0.07);
+    top: 60px;
+    left: 20%;
+    border-radius: 6px;
+}
+
+/* GRID FAKE CARDS */
+.grid-preview {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 15px;
+    padding: 100px 30px 30px;
+}
+
+.mini-card {
+    height: 70px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+}
+
+.features-section {
+    padding: 100px 20px;
+    background: #020617;
+    text-align: center;
+}
+
+.features-section h2 {
+    font-size: 32px;
+    margin-bottom: 50px;
+    color: white;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 25px;
+    max-width: 1000px;
+    margin: auto;
+}
+
+.feature {
+    background: linear-gradient(145deg, #020617, #0f172a);
+    padding: 25px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: 0.3s;
+}
+
+.feature:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(59,130,246,0.25);
+}
+
+.feature h4 {
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.feature p {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+</style>
+
+<!-- 🔥 HERO -->
+<div class="hero">
+
+    <h1>
+        Cloud Security & Cost Optimization  
+        for Multi-AWS Accounts
+    </h1>
+
+    <p>
+        Detect risks, reduce cloud costs, and monitor infrastructure  
+        across all AWS accounts — in one unified dashboard.
+    </p>
+
+    <div class="hero-buttons">
+        <button class="btn-primary" onclick="goLogin()">
+            Launch Dashboard
+        </button>
+
+        <button class="btn-secondary">
+            View Demo
+        </button>
+    </div>
+    <button class="btn-secondary" onclick="scrollToFeatures()">
+    See Features ↓
+</button>
+    <!-- 🔥 FAKE DASHBOARD PREVIEW -->
+    <div class="preview">
+        <div class="grid-preview">
+            <div class="mini-card"></div>
+            <div class="mini-card"></div>
+            <div class="mini-card"></div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- 🔥 FEATURES SECTION -->
+<div id="features" class="features-section">
+
+    <h2>Everything you need to manage AWS at scale</h2>
+
+    <div class="features-grid">
+
+        <div class="feature">
+            <h4>🔐 Security Scanning</h4>
+            <p>Detect public buckets, exposed ports, and misconfigurations instantly.</p>
+        </div>
+
+        <div class="feature">
+            <h4>💰 Cost Optimization</h4>
+            <p>Find idle EC2, unused storage, and reduce unnecessary AWS costs.</p>
+        </div>
+
+        <div class="feature">
+            <h4>📊 Multi-Account Monitoring</h4>
+            <p>Manage multiple AWS accounts from one unified dashboard.</p>
+        </div>
+
+        <div class="feature">
+            <h4>⚡ Real-time Findings</h4>
+            <p>Get actionable insights with direct links to fix issues instantly.</p>
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+function scrollToFeatures(){
+    document.getElementById("features").scrollIntoView({behavior:"smooth"});
+}
+function goLogin(){
+    window.location.href="/login";
+}
+
+</script>
+
+{% endblock %}

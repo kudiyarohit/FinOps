@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FinOps</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: rgba(15,23,42,0.8);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .logo {
+            font-weight: 600;
+            font-size: 20px;
+            color: #38bdf8;
+            text-decoration: none;
+        }
+
+        .nav-btn {
+            background: #f59e0b;
+            padding: 8px 18px;
+            border: none;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<div class="navbar">
+    <a href="/" class="logo">FinOps</a>
+    <button class="nav-btn" onclick="goLogin()">Login</button>
+</div>
+
+<div class="content">
+    {% block content %}{% endblock %}
+</div>
+
+<script>
+function goLogin(){
+    window.location.href = "/login";
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #020617; --surface: #0f172a; --surface2: #1e293b;
+    --border: rgba(255,255,255,0.07); --text: #e2e8f0; --muted: #64748b;
+    --blue: #3b82f6; --red: #ef4444; --orange: #f59e0b; --green: #22c55e;
+  }
+  .page-wrap { padding: 32px; font-family: 'Inter', sans-serif; color: var(--text); }
+
+  /* ── HEADER ── */
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 14px; }
+  .page-header h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .page-header p  { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+
+  .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+  .filter-bar select {
+    background: #0f172a; color: var(--text); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 10px; font-size: 13px; cursor: pointer;
+    outline: none; transition: border-color 0.2s;
+  }
+  .filter-bar select:focus { border-color: rgba(59,130,246,0.4); }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .stat-card {
+    background: linear-gradient(145deg, #0a1628, #0f172a); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; position: relative; overflow: hidden;
+    animation: fadeUp 0.4s ease both;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; left: 0; top: 15%; height: 70%; width: 3px; border-radius: 0 4px 4px 0;
+  }
+  .stat-card.total::before  { background: var(--blue); }
+  .stat-card.scans::before  { background: #a855f7; }
+  .stat-card.high::before   { background: var(--red); }
+  .stat-card.medium::before { background: var(--orange); }
+  .stat-card.low::before    { background: var(--green); }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-size: 26px; font-weight: 700; }
+  .stat-card.total .stat-value  { color: #60a5fa; }
+  .stat-card.scans .stat-value  { color: #c084fc; }
+  .stat-card.high .stat-value   { color: #f87171; }
+  .stat-card.medium .stat-value { color: #fbbf24; }
+  .stat-card.low .stat-value    { color: #4ade80; }
+
+  /* ── TIMELINE ── */
+  .timeline { position: relative; }
+  .timeline::before {
+    content: ''; position: absolute; left: 16px; top: 0; bottom: 0;
+    width: 1px; background: linear-gradient(180deg, rgba(59,130,246,0.4), transparent);
+  }
+
+  .session-card {
+    position: relative; margin-left: 40px; margin-bottom: 20px;
+    background: linear-gradient(145deg, #0a1628, #0f172a);
+    border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+  .session-card::before {
+    content: ''; position: absolute;
+    left: -25px; top: 22px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--blue); border: 2px solid #020617;
+    box-shadow: 0 0 10px rgba(59,130,246,0.6);
+    z-index: 1;
+  }
+  .session-card:hover { border-color: rgba(59,130,246,0.25); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+
+  .session-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; cursor: pointer; user-select: none;
+  }
+  .session-header:hover .session-time { color: var(--text); }
+
+  .session-meta { display: flex; flex-direction: column; gap: 2px; }
+  .session-num  { font-size: 12px; font-weight: 600; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.06em; }
+  .session-time { font-size: 14px; color: var(--text); margin-top: 2px; }
+  .session-ts   { font-size: 12px; color: var(--muted); }
+
+  .session-badges { display: flex; gap: 8px; align-items: center; }
+  .sev-badge {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px;
+  }
+  .sev-badge .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sev-badge.high   { background: rgba(239,68,68,0.1);   color: #f87171; }
+  .sev-badge.medium { background: rgba(245,158,11,0.1);  color: #fbbf24; }
+  .sev-badge.low    { background: rgba(34,197,94,0.1);   color: #4ade80; }
+  .sev-badge.high   .dot { background: #ef4444; }
+  .sev-badge.medium .dot { background: #f59e0b; }
+  .sev-badge.low    .dot { background: #22c55e; }
+
+  .expand-icon { color: var(--muted); transition: transform 0.25s; margin-left: 8px; }
+  .session-card.open .expand-icon { transform: rotate(180deg); }
+
+  /* ── FINDINGS PANEL ── */
+  .findings-panel { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+  .session-card.open .findings-panel { max-height: 2000px; }
+
+  .findings-inner { padding: 0 20px 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+  .findings-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+  .finding-card {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px; position: relative; overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .finding-card:hover { transform: translateY(-3px); }
+  .finding-card::before {
+    content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%; border-radius: 0;
+  }
+  .finding-card.high::before   { background: var(--red); }
+  .finding-card.medium::before { background: var(--orange); }
+  .finding-card.low::before    { background: var(--green); }
+  .finding-card.high:hover   { box-shadow: 0 8px 20px rgba(239,68,68,0.15); }
+  .finding-card.medium:hover { box-shadow: 0 8px 20px rgba(245,158,11,0.15); }
+  .finding-card.low:hover    { box-shadow: 0 8px 20px rgba(34,197,94,0.15); }
+
+  .finding-top  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .finding-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+  .finding-svc  { font-size: 10px; padding: 2px 7px; border-radius: 5px; background: rgba(255,255,255,0.07); color: var(--muted); }
+  .finding-meta { font-size: 11px; color: var(--muted); margin: 4px 0; }
+  .finding-desc { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+
+  .no-findings { text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
+
+  /* ── EMPTY STATE ── */
+  .empty-history {
+    text-align: center; padding: 80px 20px; color: var(--muted);
+  }
+  .empty-history .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-history h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+  .empty-history p  { font-size: 13px; max-width: 300px; margin: 0 auto; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .session-card:nth-child(2) { animation-delay: 0.05s; }
+  .session-card:nth-child(3) { animation-delay: 0.1s; }
+  .session-card:nth-child(4) { animation-delay: 0.15s; }
+  .session-card:nth-child(5) { animation-delay: 0.2s; }
+</style>
+
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <h1>Scan History</h1>
+      <p>All past scan sessions across your accounts</p>
+    </div>
+    <div class="filter-bar">
+      <select id="accountFilter" onchange="handleFilterChange()">
+        <option value="">Select Account</option>
+      </select>
+      <select id="categoryFilter" onchange="handleFilterChange()">
+        <option value="ALL">All Categories</option>
+        <option value="SECURITY">Security</option>
+        <option value="COST">Cost</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card total" style="animation-delay:0s">
+      <div class="stat-label">Total Findings</div>
+      <div class="stat-value" id="statTotal">—</div>
+    </div>
+    <div class="stat-card scans" style="animation-delay:0.05s">
+      <div class="stat-label">Total Scans</div>
+      <div class="stat-value" id="statScans">—</div>
+    </div>
+    <div class="stat-card high" style="animation-delay:0.1s">
+      <div class="stat-label">High</div>
+      <div class="stat-value" id="statHigh">—</div>
+    </div>
+    <div class="stat-card medium" style="animation-delay:0.15s">
+      <div class="stat-label">Medium</div>
+      <div class="stat-value" id="statMedium">—</div>
+    </div>
+    <div class="stat-card low" style="animation-delay:0.2s">
+      <div class="stat-label">Low</div>
+      <div class="stat-value" id="statLow">—</div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="timeline" id="historyContainer"></div>
+
+</div>
+
+<script>
+  let selectedAccount  = '';
+  let selectedCategory = 'ALL';
+  let allSessions      = [];
+  const findingsCache  = {}; // session_id → findings[]
+
+  // ── ACCOUNTS ──────────────────────────────
+  async function loadAccounts() {
+    const res  = await fetch('/aws/accounts', {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+    });
+    const data = await res.json();
+    const filter = document.getElementById('accountFilter');
+    filter.innerHTML = '<option value="">Select Account</option>';
+
+    (data.accounts || []).forEach((acc, i) => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.innerText = `${acc.account_name} (${acc.region})`;
+      filter.appendChild(opt);
+      if (i === 0) { selectedAccount = acc.id; opt.selected = true; }
+    });
+
+    if (selectedAccount) loadHistory();
+  }
+
+  function handleFilterChange() {
+    selectedAccount  = document.getElementById('accountFilter').value;
+    selectedCategory = document.getElementById('categoryFilter').value;
+    // Re-render already-cached findings with new category filter
+    document.querySelectorAll('.session-card').forEach(card => {
+      const sid   = card.dataset.sessionId;
+      const inner = document.getElementById(`findings-${sid}`);
+      if (findingsCache[sid] && card.classList.contains('open')) {
+        renderFindings(inner, findingsCache[sid]);
+      }
+    });
+    if (selectedAccount) loadHistory();
+  }
+
+  // ── HISTORY ───────────────────────────────
+  async function loadHistory() {
+    const container = document.getElementById('historyContainer');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#475569;font-size:13px;">Loading history…</div>';
+
+    const res  = await fetch(`/aws/scan-history/${selectedAccount}`, {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+    });
+    const data = await res.json();
+
+    allSessions = (data.history || []).slice().reverse(); // newest first
+
+    // ── STATS ──
+    let totalH = 0, totalM = 0, totalL = 0;
+    allSessions.forEach(s => { totalH += s.high; totalM += s.medium; totalL += s.low; });
+    animateCount('statTotal',  totalH + totalM + totalL);
+    animateCount('statScans',  allSessions.length);
+    animateCount('statHigh',   totalH);
+    animateCount('statMedium', totalM);
+    animateCount('statLow',    totalL);
+
+    renderTimeline();
+  }
+
+  // ── TIMELINE ──────────────────────────────
+  function renderTimeline() {
+    const container = document.getElementById('historyContainer');
+    container.innerHTML = '';
+
+    if (!allSessions.length) {
+      container.innerHTML = `
+        <div class="empty-history">
+          <div class="icon">📭</div>
+          <h3>No scan history yet</h3>
+          <p>Run your first scan to see results here.</p>
+        </div>`;
+      return;
+    }
+
+    allSessions.forEach((s, idx) => {
+      const total   = s.high + s.medium + s.low;
+      const scanNum = allSessions.length - idx;
+      const card    = document.createElement('div');
+
+      card.className         = 'session-card';
+      card.dataset.sessionId = s.session_id;   // ✅ session_id from backend
+      card.style.animationDelay = `${idx * 0.06}s`;
+
+      card.innerHTML = `
+        <div class="session-header" onclick="toggleSession(this)">
+          <div class="session-meta">
+            <div class="session-num">Scan #${scanNum}</div>
+            <div class="session-time">${new Date(s.time).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</div>
+            <div class="session-ts">${new Date(s.time).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="session-badges">
+              ${s.high   ? `<span class="sev-badge high"><span class="dot"></span>${s.high} High</span>`     : ''}
+              ${s.medium ? `<span class="sev-badge medium"><span class="dot"></span>${s.medium} Med</span>`  : ''}
+              ${s.low    ? `<span class="sev-badge low"><span class="dot"></span>${s.low} Low</span>`        : ''}
+              ${total === 0 ? `<span style="font-size:12px;color:var(--muted)">Clean scan ✓</span>`         : ''}
+            </div>
+            <svg class="expand-icon" width="16" height="16" fill="none" stroke="currentColor"
+                 stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="findings-panel">
+          <div class="findings-inner" id="findings-${s.session_id}">
+            <div style="text-align:center;padding:20px;color:#475569;font-size:13px;">
+              Click to expand findings…
+            </div>
+          </div>
+        </div>`;
+
+      container.appendChild(card);
+    });
+  }
+
+  // ── TOGGLE + LAZY FETCH ───────────────────
+  async function toggleSession(headerEl) {
+    const card      = headerEl.parentElement;
+    const sessionId = card.dataset.sessionId;
+    const isOpening = !card.classList.contains('open');
+    card.classList.toggle('open');
+
+    if (!isOpening) return;
+
+    const inner = document.getElementById(`findings-${sessionId}`);
+
+    // Cached? Seedha render karo
+    if (findingsCache[sessionId] !== undefined) {
+      renderFindings(inner, findingsCache[sessionId]);
+      return;
+    }
+
+    // Loading spinner
+    inner.innerHTML = `
+      <div style="text-align:center;padding:24px;color:#475569;font-size:13px;">
+        <svg style="animation:spin 0.9s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px"
+             width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83
+                   M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        Loading findings…
+      </div>`;
+
+    try {
+      const res  = await fetch(
+        `/aws/scan-findings/${selectedAccount}/${sessionId}`,
+        { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
+      );
+      const data = await res.json();
+      findingsCache[sessionId] = data.findings || [];
+      renderFindings(inner, findingsCache[sessionId]);
+    } catch (err) {
+      inner.innerHTML = `<div class="no-findings" style="color:#f87171;">
+        Failed to load findings. Try again.
+      </div>`;
+    }
+  }
+
+  // ── RENDER FINDINGS ───────────────────────
+  function renderFindings(container, allFindings) {
+    const findings = selectedCategory === 'ALL'
+      ? allFindings
+      : allFindings.filter(f => f.category === selectedCategory);
+
+    if (!findings.length) {
+      container.innerHTML = `<div class="no-findings">
+        No findings${selectedCategory !== 'ALL' ? ' in this category' : ''} for this scan.
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = `<div class="findings-grid">${
+      findings.map(f => `
+        <div class="finding-card ${(f.severity || 'LOW').toLowerCase()}">
+          <div class="finding-top">
+            <div class="finding-title">${f.title || 'Untitled'}</div>
+            <span class="finding-svc">${f.service || ''}</span>
+          </div>
+          <div class="finding-meta">${f.resource || ''}</div>
+          <div class="finding-desc">${f.description || ''}</div>
+        </div>`).join('')
+    }</div>`;
+  }
+
+  // ── COUNT ANIMATION ───────────────────────
+  function animateCount(id, target) {
+    const el   = document.getElementById(id);
+    let   curr = 0;
+    const step = Math.ceil(target / 20) || 1;
+    const t    = setInterval(() => {
+      curr = Math.min(curr + step, target);
+      el.innerText = curr;
+      if (curr >= target) clearInterval(t);
+    }, 40);
+  }
+
+  loadAccounts();
+</script>
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+{% endblock %}

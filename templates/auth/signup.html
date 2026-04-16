@@ -1,0 +1,241 @@
+{% extends "base_public.html" %}
+
+{% block content %}
+
+<style>
+.signup-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+}
+
+.signup-card {
+    width: 380px;
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    animation: fadeIn 0.5s ease;
+}
+
+.signup-card h2 {
+    margin-bottom: 20px;
+    color: #111827;
+}
+
+.signup-card input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+
+.password-wrapper {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #2563eb;
+}
+
+.signup-btn {
+    width: 100%;
+    padding: 12px;
+    background: #f59e0b;
+    border: none;
+    color: white;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.signup-btn:hover {
+    background: #d97706;
+}
+
+.status {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.error { color: red; }
+.success { color: green; }
+
+/* RESEND */
+.resend {
+    margin-top: 12px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.resend span {
+    color: #2563eb;
+    cursor: pointer;
+}
+
+.resend span.disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px);}
+    to { opacity: 1; transform: translateY(0);}
+}
+</style>
+
+<div class="signup-wrapper">
+
+    <div class="signup-card">
+
+        <h2>Create your account</h2>
+
+        <input id="email" placeholder="Email address">
+
+        <div class="password-wrapper">
+            <input id="password" type="password" placeholder="Password">
+            <span class="toggle-password" onclick="togglePassword()">Show</span>
+        </div>
+
+        <button id="signupBtn" class="signup-btn" onclick="signup()">
+            Create account
+        </button>
+
+        <p id="status" class="status"></p>
+
+        <!-- 🔥 RESEND OTP -->
+        <div id="resendBox" class="resend" style="display:none;">
+            Didn’t receive OTP? 
+            <span id="resendBtn" onclick="resendOTP()">Resend</span>
+            <span id="timer"></span>
+        </div>
+
+        <p style="margin-top:15px;">
+            Already have an account? <a href="/login">Sign in</a>
+        </p>
+
+    </div>
+
+</div>
+
+<script>
+
+let countdown = 30;
+let timerInterval = null;
+
+function togglePassword() {
+    const pass = document.getElementById("password");
+    const toggle = document.querySelector(".toggle-password");
+
+    if (pass.type === "password") {
+        pass.type = "text";
+        toggle.innerText = "Hide";
+    } else {
+        pass.type = "password";
+        toggle.innerText = "Show";
+    }
+}
+
+function startTimer() {
+    const timer = document.getElementById("timer");
+    const resendBtn = document.getElementById("resendBtn");
+
+    resendBtn.classList.add("disabled");
+
+    timerInterval = setInterval(() => {
+        countdown--;
+        timer.innerText = ` (${countdown}s)`;
+
+        if (countdown <= 0) {
+            clearInterval(timerInterval);
+            timer.innerText = "";
+            resendBtn.classList.remove("disabled");
+            countdown = 30;
+        }
+    }, 1000);
+}
+
+async function signup() {
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const status = document.getElementById("status");
+
+    if (!email || !password) {
+        status.innerText = "Please fill all fields";
+        status.className = "status error";
+        return;
+    }
+
+    try {
+        const res = await fetch("/auth/signup", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            status.innerText = "OTP sent! You can resend if needed.";
+            status.className = "status success";
+
+            localStorage.setItem("email", email);
+
+            // 🔥 SHOW RESEND UI
+            document.getElementById("resendBox").style.display = "block";
+            startTimer();
+
+            // 🔥 DELAY REDIRECT (so user can see resend)
+            setTimeout(() => {
+                window.location.href = "/verify-otp";
+            }, 8000);
+
+        } else {
+            status.innerText = data.message;
+            status.className = "status error";
+        }
+
+    } catch (err) {
+        status.innerText = "Something went wrong";
+        status.className = "status error";
+    }
+}
+
+async function resendOTP() {
+
+    const resendBtn = document.getElementById("resendBtn");
+
+    if (resendBtn.classList.contains("disabled")) return;
+
+    const email = localStorage.getItem("email");
+    const status = document.getElementById("status");
+
+    try {
+        await fetch("/auth/signup", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ email, password: "dummy123" })
+        });
+
+        status.innerText = "OTP resent";
+        status.className = "status success";
+
+        startTimer();
+
+    } catch (err) {
+        status.innerText = "Error resending OTP";
+        status.className = "status error";
+    }
+}
+
+</script>
+
+{% endblock %}

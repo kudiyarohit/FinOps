@@ -1,0 +1,163 @@
+{% extends "base_public.html" %}
+
+{% block content %}
+
+<style>
+
+/* WRAPPER */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80vh;
+}
+
+/* CARD */
+.card {
+    width: 380px;
+    background: white;
+    padding: 30px;
+    border-radius: 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+    text-align: center;
+    animation: fadeIn 0.4s ease;
+}
+
+/* ANIMATION */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* TITLE */
+.card h2 {
+    margin-bottom: 20px;
+    color: #111827;
+}
+
+/* INPUT */
+.card input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    transition: 0.2s;
+}
+
+.card input:focus {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+/* BUTTON */
+.btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 999px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.btn:hover {
+    background: #1d4ed8;
+    transform: scale(1.03);
+}
+
+/* STATUS */
+.status {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+/* SUCCESS */
+.success {
+    color: #16a34a;
+}
+
+/* ERROR */
+.error {
+    color: #dc2626;
+}
+
+</style>
+
+<div class="auth-container">
+
+    <div class="card">
+
+        <h2>Verify OTP</h2>
+
+        <input id="email" disabled>
+        <input id="otp" placeholder="Enter OTP">
+
+        <button id="verifyBtn" class="btn" onclick="verifyOTP()">Verify OTP</button>
+
+        <p id="response" class="status"></p>
+
+    </div>
+
+</div>
+
+<script>
+
+document.getElementById("email").value = localStorage.getItem("email");
+
+async function verifyOTP() {
+
+    const btn = document.getElementById("verifyBtn");
+    const responseEl = document.getElementById("response");
+
+    const otp = document.getElementById("otp").value;
+
+    if (!otp) {
+        responseEl.innerText = "Enter OTP";
+        responseEl.className = "status error";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Verifying...";
+
+    try {
+        const res = await fetch("/auth/verify-otp", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                email: localStorage.getItem("email"),
+                otp: otp
+            })
+        });
+
+        const data = await res.json();
+
+        responseEl.innerText = data.message;
+
+        if (res.ok) {
+            responseEl.className = "status success";
+
+            setTimeout(() => {
+                window.location.href = "/login";
+            }, 1200);
+
+        } else {
+            responseEl.className = "status error";
+        }
+
+    } catch (err) {
+        responseEl.innerText = "Something went wrong";
+        responseEl.className = "status error";
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Verify OTP";
+}
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends "base_public.html" %}
+{% block content %}
+
+<style>
+
+/* BACKGROUND */
+body {
+    background: linear-gradient(135deg, #f8fafc, #eef2ff);
+}
+
+/* CENTER */
+.signup-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+}
+
+/* CARD */
+.signup-card {
+    width: 400px;
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.08);
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+}
+
+/* TITLE */
+.signup-card h2 {
+    margin-bottom: 10px;
+}
+
+/* SUBTEXT */
+.subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 25px;
+}
+
+/* INPUT */
+.signup-card input {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 18px;
+    font-size: 16px;
+    text-align: center;
+    letter-spacing: 4px;
+}
+
+/* FOCUS */
+.signup-card input:focus {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+/* BUTTON */
+.signup-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border: none;
+    color: white;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.signup-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(59,130,246,0.3);
+}
+
+.signup-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* STATUS */
+.status {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.error { color: #dc2626; }
+.success { color: #16a34a; }
+
+/* RESEND */
+.resend {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.resend span {
+    color: #2563eb;
+    cursor: pointer;
+}
+
+.resend span.disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* BACK LINK */
+.back-link {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.back-link a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+/* ANIMATION */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(25px);}
+    to { opacity: 1; transform: translateY(0);}
+}
+
+</style>
+
+<div class="signup-wrapper">
+
+    <div class="signup-card">
+
+        <h2>Verify OTP</h2>
+        <p class="subtitle">Enter the 6-digit code sent to your email</p>
+
+        <input id="otp" maxlength="6" placeholder="------">
+
+        <button id="verifyBtn" class="signup-btn" onclick="verifyOTP()">
+            Verify Code
+        </button>
+
+        <p id="status" class="status"></p>
+
+        <!-- 🔥 RESEND -->
+        <div class="resend">
+            Didn’t receive code? 
+            <span id="resendBtn" onclick="resendOTP()">Resend</span>
+            <span id="timer"></span>
+        </div>
+
+        <div class="back-link">
+            <a href="/login">← Back to login</a>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let countdown = 30;
+
+function startTimer() {
+    const timer = document.getElementById("timer");
+    const btn = document.getElementById("resendBtn");
+
+    btn.classList.add("disabled");
+
+    const interval = setInterval(() => {
+        countdown--;
+        timer.innerText = ` (${countdown}s)`;
+
+        if (countdown <= 0) {
+            clearInterval(interval);
+            timer.innerText = "";
+            btn.classList.remove("disabled");
+            countdown = 30;
+        }
+    }, 1000);
+}
+
+// start timer on load
+startTimer();
+
+async function verifyOTP() {
+
+    const otp = document.getElementById("otp").value;
+    const email = localStorage.getItem("email");
+    const status = document.getElementById("status");
+    const btn = document.getElementById("verifyBtn");
+
+    if (!otp) {
+        status.innerText = "Enter OTP";
+        status.className = "status error";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Verifying...";
+
+    try {
+        const res = await fetch("/auth/verify-reset-otp", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ email, otp })
+        });
+
+        const data = await res.json();
+        status.innerText = data.message;
+
+        if (res.ok) {
+            status.className = "status success";
+
+            setTimeout(() => {
+                window.location.href = "/reset-password";
+            }, 1200);
+
+        } else {
+            status.className = "status error";
+        }
+
+    } catch (err) {
+        status.innerText = "Something went wrong";
+        status.className = "status error";
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Verify Code";
+}
+
+async function resendOTP() {
+
+    const btn = document.getElementById("resendBtn");
+
+    if (btn.classList.contains("disabled")) return;
+
+    const email = localStorage.getItem("email");
+    const status = document.getElementById("status");
+
+    try {
+        await fetch("/auth/forgot-password", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ email })
+        });
+
+        status.innerText = "OTP resent";
+        status.className = "status success";
+
+        startTimer();
+
+    } catch (err) {
+        status.innerText = "Error resending OTP";
+        status.className = "status error";
+    }
+}
+
+</script>
+
+{% endblock %}

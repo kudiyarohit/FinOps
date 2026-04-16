@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #020617; --surface: #0f172a; --border: rgba(255,255,255,0.07);
+    --text: #e2e8f0; --muted: #64748b;
+    --blue: #3b82f6; --red: #ef4444; --orange: #f59e0b; --green: #22c55e;
+  }
+
+  .dash-wrap { padding: 28px; font-family: 'Inter', sans-serif; color: var(--text); }
+
+  /* ── HEADER ── */
+  .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px; }
+  .dash-header h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .dash-header p  { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+  .last-scan-badge {
+    font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 20px;
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── FILTER ── */
+  .filter-row { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+  .filter-row select {
+    background: #0f172a; color: var(--text); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 10px; font-size: 13px; cursor: pointer; outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-row select:focus { border-color: rgba(59,130,246,0.4); }
+
+  /* ── PIPELINE ── */
+  .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 700px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
+
+  .pipe {
+    position: relative; padding: 18px 18px 16px;
+    background: linear-gradient(145deg, #0a1628, #0f172a);
+    border: 1px solid var(--border); border-radius: 16px;
+    transition: transform 0.25s, box-shadow 0.25s;
+    animation: fadeUp 0.4s ease both; overflow: hidden;
+  }
+  .pipe::before {
+    content: ''; position: absolute; left: 0; top: 15%; height: 70%; width: 3px; border-radius: 0 4px 4px 0;
+  }
+  .pipe::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 90% 10%, var(--pipe-glow, rgba(59,130,246,0.05)), transparent 60%);
+    pointer-events: none;
+  }
+  .pipe.total   { --pipe-glow: rgba(59,130,246,0.06); }
+  .pipe.high    { --pipe-glow: rgba(239,68,68,0.06); animation-delay: 0.06s; }
+  .pipe.medium  { --pipe-glow: rgba(245,158,11,0.06); animation-delay: 0.12s; }
+  .pipe.low     { --pipe-glow: rgba(34,197,94,0.06); animation-delay: 0.18s; }
+  .pipe.total::before  { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+  .pipe.high::before   { background: linear-gradient(180deg, #ef4444, #f87171); }
+  .pipe.medium::before { background: linear-gradient(180deg, #f59e0b, #fbbf24); }
+  .pipe.low::before    { background: linear-gradient(180deg, #22c55e, #4ade80); }
+  .pipe:hover { transform: translateY(-4px); }
+  .pipe.total:hover  { box-shadow: 0 16px 32px rgba(59,130,246,0.2); }
+  .pipe.high:hover   { box-shadow: 0 16px 32px rgba(239,68,68,0.2); }
+  .pipe.medium:hover { box-shadow: 0 16px 32px rgba(245,158,11,0.2); }
+  .pipe.low:hover    { box-shadow: 0 16px 32px rgba(34,197,94,0.2); }
+
+  .pipe h4 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 10px; }
+  .pipe p  { font-size: 28px; font-weight: 700; margin: 0; transition: color 0.3s; }
+  .pipe.total p  { color: #60a5fa; }
+  .pipe.high p   { color: #f87171; }
+  .pipe.medium p { color: #fbbf24; }
+  .pipe.low p    { color: #4ade80; }
+
+  /* ── TOP SECTION ── */
+  .top-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  @media (max-width: 700px) { .top-section { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: linear-gradient(145deg, #0a1628, #0f172a);
+    border: 1px solid var(--border); border-radius: 18px; padding: 24px;
+    animation: fadeUp 0.4s ease 0.2s both;
+  }
+  .chart-card h3 { font-size: 13px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 16px; }
+
+  /* ── RESULTS SECTION ── */
+  .account-section { margin-bottom: 28px; animation: fadeUp 0.4s ease 0.3s both; }
+  .account-header  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .account-title   { font-size: 15px; font-weight: 600; }
+  .account-meta    { font-size: 12px; color: var(--muted); }
+
+  .findings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+  .result-card {
+    background: linear-gradient(145deg, #0a1628, #0f172a);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px; position: relative; overflow: hidden;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .result-card::before { content:''; position:absolute; left:0; top:0; width:3px; height:100%; }
+  .result-card.high::before   { background: var(--red); }
+  .result-card.medium::before { background: var(--orange); }
+  .result-card.low::before    { background: var(--green); }
+  .result-card:hover { transform: translateY(-4px) scale(1.01); }
+  .result-card.high:hover   { box-shadow: 0 16px 32px rgba(239,68,68,0.2); }
+  .result-card.medium:hover { box-shadow: 0 16px 32px rgba(245,158,11,0.2); }
+  .result-card.low:hover    { box-shadow: 0 16px 32px rgba(34,197,94,0.2); }
+
+  .result-top   { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .result-title { font-size: 14px; font-weight: 600; flex: 1; margin-right: 8px; line-height: 1.4; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: rgba(255,255,255,0.08); color: var(--text); flex-shrink: 0; }
+  .result-meta  { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  .result-desc  { font-size: 13px; color: #94a3b8; line-height: 1.5; margin: 8px 0; }
+  .result-reco  { font-size: 12px; color: #38bdf8; line-height: 1.4; }
+  .result-risk  { font-size: 12px; margin-top: 6px; }
+
+  .aws-link {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 10px;
+    font-size: 11px; color: #60a5fa; text-decoration: none;
+    border-bottom: 1px solid transparent; transition: border-color 0.2s;
+  }
+  .aws-link:hover { border-color: #60a5fa; }
+
+  .show-more-btn {
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+    color: #60a5fa; padding: 7px 16px; border-radius: 8px; cursor: pointer;
+    font-size: 12px; transition: all 0.2s; margin-top: 12px;
+  }
+  .show-more-btn:hover { background: rgba(59,130,246,0.16); border-color: rgba(59,130,246,0.35); }
+
+  .no-data {
+    text-align: center; padding: 50px; color: var(--muted); font-size: 13px;
+    background: linear-gradient(145deg, #0a1628, #0f172a);
+    border: 1px solid var(--border); border-radius: 14px;
+  }
+  .no-data .icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<div class="dash-wrap">
+
+  <!-- HEADER -->
+  <div class="dash-header">
+    <div>
+      <h1>Security Dashboard</h1>
+      <p>Real-time cloud security posture overview</p>
+    </div>
+    <div class="last-scan-badge">
+      <div class="live-dot"></div>
+      <span id="lastScan">Loading...</span>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-row">
+    <select id="accountFilter" onchange="handleFilterChange()">
+      <option value="all">All Accounts</option>
+    </select>
+  </div>
+
+  <!-- PIPELINE -->
+  <div class="pipeline">
+    <div class="pipe total"><h4>Total Events</h4><p id="total">0</p></div>
+    <div class="pipe high" ><h4>High</h4><p id="high">0</p></div>
+    <div class="pipe medium"><h4>Medium</h4><p id="medium">0</p></div>
+    <div class="pipe low"  ><h4>Low</h4><p id="low">0</p></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="top-section">
+    <div class="chart-card">
+      <h3>Risk Score</h3>
+      <div style="position:relative;height:200px;max-width:380px;margin:0 auto">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Scan History</h3>
+      <div style="position:relative;height:200px">
+        <canvas id="historyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINDINGS -->
+  <div id="results"></div>
+
+</div>
+
+<script>
+  let chart, historyChart;
+  let globalFindings = [];
+  let accountFindingsMap = {};
+  let allAccountsGlobal = [];
+  let selectedAccount = 'all';
+
+  function toCount(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function getCurrentSeverityCounts() {
+    let findings = globalFindings;
+    if (selectedAccount !== 'all' && accountFindingsMap[selectedAccount]) {
+      findings = accountFindingsMap[selectedAccount].findings || [];
+    }
+
+    const counts = { high: 0, medium: 0, low: 0, time: null };
+    findings.forEach(f => {
+      const severity = (f.severity || 'LOW').toUpperCase();
+      if (severity === 'HIGH') counts.high++;
+      else if (severity === 'MEDIUM') counts.medium++;
+      else counts.low++;
+
+      if (f.timestamp) {
+        const ts = new Date(f.timestamp);
+        if (!Number.isNaN(ts.getTime()) && (!counts.time || ts > counts.time)) {
+          counts.time = ts;
+        }
+      }
+    });
+
+    return counts;
+  }
+
+  function normalizeHistorySession(session) {
+    return {
+      ...session,
+      high: toCount(session.high ?? session.HIGH),
+      medium: toCount(session.medium ?? session.MEDIUM),
+      low: toCount(session.low ?? session.LOW),
+      time: session.time
+    };
+  }
+
+  function syncLatestSession(sessions) {
+    const current = getCurrentSeverityCounts();
+    if (!current.time) return sessions;
+
+    const synced = sessions.slice();
+    const currentPoint = {
+      time: current.time.toISOString(),
+      high: current.high,
+      medium: current.medium,
+      low: current.low
+    };
+
+    if (!synced.length) return [currentPoint];
+
+    const latest = synced[synced.length - 1];
+    const latestTime = latest?.time ? new Date(latest.time).getTime() : null;
+    const currentTime = current.time.getTime();
+
+    if (
+      latest &&
+      latest.high === current.high &&
+      latest.medium === current.medium &&
+      latest.low === current.low &&
+      latestTime === currentTime
+    ) {
+      return synced;
+    }
+
+    if (latestTime && Math.abs(latestTime - currentTime) < 60 * 1000) {
+      synced[synced.length - 1] = currentPoint;
+    } else {
+      synced.push(currentPoint);
+    }
+
+    return synced;
+  }
+
+  // ── ANIMATE NUMBERS ────────────────────────
+  function animateTo(id, target) {
+    const el = document.getElementById(id);
+    const current = parseInt(el.innerText) || 0;
+    const diff = target - current;
+    if (diff === 0) return;
+    const steps = 20;
+    let i = 0;
+    const t = setInterval(() => {
+      i++;
+      el.innerText = Math.round(current + diff * (i / steps));
+      if (i >= steps) clearInterval(t);
+    }, 25);
+  }
+
+  // ── SUMMARY ────────────────────────────────
+  function updateSummary() {
+    let h = 0, m = 0, l = 0;
+    globalFindings.forEach(f => {
+      if (f.severity === 'HIGH') h++;
+      else if (f.severity === 'MEDIUM') m++;
+      else l++;
+    });
+    animateTo('total', globalFindings.length);
+    animateTo('high', h); animateTo('medium', m); animateTo('low', l);
+
+    if (globalFindings.length) {
+      const latest = globalFindings
+        .filter(f => f.timestamp)
+        .map(f => new Date(f.timestamp))
+        .sort((a, b) => b - a)[0];
+      document.getElementById('lastScan').innerText =
+        latest ? 'Last scan: ' + latest.toLocaleString() : 'Live';
+    } else {
+      document.getElementById('lastScan').innerText = 'No scan data';
+    }
+  }
+
+  // ── RISK GAUGE ─────────────────────────────
+  function renderChart() {
+    if (chart) chart.destroy();
+    const ctx = document.getElementById('chart').getContext('2d');
+    let h = 0, m = 0, l = 0;
+    globalFindings.forEach(f => {
+      if (f.severity === 'HIGH') h++;
+      else if (f.severity === 'MEDIUM') m++;
+      else l++;
+    });
+    const penalty = Math.min(100, h * 5 + m * 2 + l * 0.5);
+    const score   = Math.round(100 - penalty);
+    const band =
+      score >= 80 ? { label: 'Healthy',  color: '#22c55e', glow: 'rgba(34,197,94,0.6)' }  :
+      score >= 50 ? { label: 'At Risk',  color: '#f59e0b', glow: 'rgba(245,158,11,0.6)' } :
+      score >= 20 ? { label: 'Critical', color: '#ef4444', glow: 'rgba(239,68,68,0.6)' }  :
+                    { label: 'Breached', color: '#7f1d1d', glow: 'rgba(127,29,29,0.6)' };
+
+    const gradient = ctx.createLinearGradient(0, 0, 300, 0);
+    gradient.addColorStop(0, band.color);
+    gradient.addColorStop(1, band.color + '33');
+
+    const centerPlugin = {
+      id: 'centerText',
+      afterDraw(ch) {
+        const { ctx: c, chartArea: { top, bottom, left, right } } = ch;
+        const cx = (left + right) / 2, cy = (top + bottom) / 2 + 15;
+        c.save();
+        c.shadowBlur = 30; c.shadowColor = band.glow;
+        c.font = 'bold 44px Inter'; c.fillStyle = band.color; c.textAlign = 'center';
+        c.fillText(score, cx, cy - 10);
+        c.shadowBlur = 0;
+        c.font = '13px Inter'; c.fillStyle = '#94a3b8';
+        c.fillText(band.label, cx, cy + 22);
+        c.font = '11px Inter'; c.fillStyle = '#475569';
+        c.fillText(`${h}H ${m}M ${l}L`, cx, cy + 42);
+        c.restore();
+      }
+    };
+
+    chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [score, 100 - score],
+          backgroundColor: [gradient, 'rgba(255,255,255,0.03)'],
+          borderWidth: 0, borderRadius: 20, spacing: 3
+        }]
+      },
+      options: {
+        rotation: -90, circumference: 180, cutout: '82%',
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 1400, easing: 'easeOutElastic' },
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+      },
+      plugins: [centerPlugin]
+    });
+  }
+
+  // ── HISTORY CHART ──────────────────────────
+  async function renderHistory(accounts) {
+    if (historyChart) historyChart.destroy();
+    const ctx = document.getElementById('historyChart').getContext('2d');
+
+    let sessions = [];
+    try {
+      if (selectedAccount === 'all') {
+        const r    = await fetch('/aws/global-history', {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+        });
+        const d = await r.json(); sessions = d.history || [];
+      } else {
+        const r = await fetch(`/aws/scan-history/${selectedAccount}`, {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+        });
+        const d = await r.json(); sessions = d.history || [];
+      }
+    } catch {}
+
+    sessions = sessions.map(normalizeHistorySession);
+    sessions = syncLatestSession(sessions);
+
+    if (!sessions.length) {
+      ctx.font = '13px Inter'; ctx.fillStyle = '#475569'; ctx.textAlign = 'center';
+      ctx.fillText('No scan history yet', ctx.canvas.width / 2, 100);
+      return;
+    }
+
+    sessions.sort((a, b) => new Date(a.time) - new Date(b.time));
+    sessions = sessions.slice(-10);
+
+    const labels = sessions.map(s => {
+      const d = new Date(s.time);
+      return d.toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    });
+
+    function areaGrad(color) {
+      const g = ctx.createLinearGradient(0, 0, 0, 200);
+      g.addColorStop(0, color.replace('1)', '0.18)'));
+      g.addColorStop(1, color.replace('1)', '0.01)'));
+      return g;
+    }
+
+    historyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'High',
+            data: sessions.map(s => s.high),
+            borderColor: '#ef4444',
+            backgroundColor: areaGrad('rgba(239,68,68,1)'),
+            pointBackgroundColor: '#020617',
+            pointBorderColor: '#ef4444',
+            pointBorderWidth: 2,
+            borderWidth: 2,
+            pointRadius: 4,
+            tension: 0.4,
+            fill: false
+          },
+          {
+            label: 'Medium',
+            data: sessions.map(s => s.medium),
+            borderColor: '#f59e0b',
+            backgroundColor: areaGrad('rgba(245,158,11,1)'),
+            pointBackgroundColor: '#020617',
+            pointBorderColor: '#f59e0b',
+            pointBorderWidth: 2,
+            borderWidth: 2,
+            pointRadius: 4,
+            tension: 0.4,
+            fill: false
+          },
+          {
+            label: 'Low',
+            data: sessions.map(s => s.low),
+            borderColor: '#22c55e',
+            backgroundColor: areaGrad('rgba(34,197,94,1)'),
+            pointBackgroundColor: '#020617',
+            pointBorderColor: '#22c55e',
+            pointBorderWidth: 2,
+            borderWidth: 2,
+            pointRadius: 4,
+            tension: 0.4,
+            fill: false
+          },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 900, easing: 'easeOutQuart' },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', boxWidth: 12, boxHeight: 12, usePointStyle: false, padding: 14 }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#475569', maxRotation: 30 }, grid: { color: 'rgba(255,255,255,0.03)' } },
+          y: { beginAtZero: true, ticks: { color: '#475569', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
+
+  // ── LOAD SCANS ─────────────────────────────
+  async function loadAllScans(accounts) {
+    accountFindingsMap = {};
+    let allFindings = [];
+
+    for (const acc of accounts) {
+      if (selectedAccount !== 'all' && acc.id.toString() !== selectedAccount) continue;
+      try {
+        const res  = await fetch(`/aws/last-scan/${acc.id}`, {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+        });
+        const data = await res.json();
+        accountFindingsMap[acc.id] = { name: acc.account_name, region: acc.region, findings: data.findings || [] };
+        allFindings = allFindings.concat(data.findings || []);
+      } catch {}
+    }
+
+    globalFindings = allFindings;
+    updateSummary();
+    renderChart();
+    renderGroupedResults();
+    renderHistory(accounts);
+  }
+
+  // ── RENDER CARDS ───────────────────────────
+  function renderGroupedResults() {
+    const container = document.getElementById('results');
+    if (!Object.keys(accountFindingsMap).length) {
+      container.innerHTML = `<div class="no-data"><div class="icon">🔍</div>No scan data available. Run a scan to see findings.</div>`;
+      return;
+    }
+    container.innerHTML = '';
+
+    Object.values(accountFindingsMap).forEach(acc => {
+      const section = document.createElement('div');
+      section.className = 'account-section';
+
+      let lastScanText = 'No data';
+      if (acc.findings.length) {
+        const latest = acc.findings.filter(f => f.timestamp).map(f => new Date(f.timestamp)).sort((a, b) => b - a)[0];
+        if (latest) lastScanText = latest.toLocaleString();
+      }
+
+      section.innerHTML = `
+        <div class="account-header">
+          <div>
+            <div class="account-title">${acc.name}</div>
+            <div class="account-meta">${acc.region} · Last scan: ${lastScanText}</div>
+          </div>
+          <div class="account-meta">${acc.findings.length} findings</div>
+        </div>
+        <div class="findings-grid" id="grid-${acc.name}"></div>
+        <div style="text-align:center;margin-top:12px">
+          <button class="show-more-btn" id="btn-${acc.name}" style="${acc.findings.length <= 6 ? 'display:none' : ''}">
+            Show More (${acc.findings.length - 6})
+          </button>
+        </div>`;
+      container.appendChild(section);
+
+      const grid = document.getElementById(`grid-${acc.name}`);
+      const btn  = document.getElementById(`btn-${acc.name}`);
+      let expanded = false;
+
+      function renderCards() {
+        grid.innerHTML = '';
+        const LIMIT = 6;
+        const data  = expanded ? acc.findings : acc.findings.slice(0, LIMIT);
+        data.forEach(f => {
+          const sev = (f.severity || 'low').toLowerCase();
+          let awsLink = '';
+          if (f.service === 'EC2' && f.resource)
+            awsLink = `https://console.aws.amazon.com/ec2/v2/home?region=${acc.region}#Instances:instanceId=${f.resource}`;
+          else if (f.service === 'S3' && f.resource)
+            awsLink = `https://s3.console.aws.amazon.com/s3/buckets/${f.resource}`;
+          else if (f.service === 'VPC' && f.resource)
+            awsLink = `https://console.aws.amazon.com/vpc/home?region=${acc.region}#SecurityGroups:group-id=${f.resource}`;
+
+          const div = document.createElement('div');
+          div.className = `result-card ${sev}`;
+          div.innerHTML = `
+            <div class="result-top">
+              <div class="result-title">${f.title || 'No title'}</div>
+              <span class="badge">${f.severity || 'LOW'}</span>
+            </div>
+            <div class="result-meta">${f.service || 'N/A'} · ${f.resource || 'N/A'}</div>
+            <div class="result-meta">${acc.region}</div>
+            <div class="result-desc">${f.description || 'No description'}</div>
+            ${f.severity === 'HIGH'   ? '<div class="result-risk" style="color:#ef4444">⚠ Critical risk</div>'      : ''}
+            ${f.severity === 'MEDIUM' ? '<div class="result-risk" style="color:#f59e0b">◆ Misconfiguration</div>'   : ''}
+            ${f.recommendation ? `<div class="result-reco">💡 ${f.recommendation}</div>` : ''}
+            ${awsLink ? `<a class="aws-link" href="${awsLink}" target="_blank">Open in AWS ↗</a>` : ''}`;
+          grid.appendChild(div);
+        });
+      }
+
+      btn.onclick = () => {
+        expanded = !expanded;
+        btn.innerText = expanded ? 'Show Less' : `Show More (${acc.findings.length - 6})`;
+        renderCards();
+      };
+      renderCards();
+    });
+  }
+
+  // ── FILTER ─────────────────────────────────
+  function handleFilterChange() {
+    selectedAccount = document.getElementById('accountFilter').value;
+    loadAllScans(allAccountsGlobal);
+  }
+
+  function populateAccountDropdown(accounts) {
+    const filter = document.getElementById('accountFilter');
+    filter.innerHTML = '<option value="all">All Accounts</option>';
+    accounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.innerText = `${acc.account_name} (${acc.region})`;
+      if (acc.id.toString() === selectedAccount) opt.selected = true;
+      filter.appendChild(opt);
+    });
+  }
+
+  // ── INIT ───────────────────────────────────
+  async function initDashboard() {
+    const res  = await fetch('/aws/accounts', {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+    });
+    const data = await res.json();
+    allAccountsGlobal = data.accounts || [];
+    populateAccountDropdown(allAccountsGlobal);
+    if (allAccountsGlobal.length) loadAllScans(allAccountsGlobal);
+  }
+
+  initDashboard();
+</script>
+
+{% endblock %}
